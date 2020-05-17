@@ -11,7 +11,7 @@ import (
 
 // Provider implements the libdns interfaces for Gandi.
 type Provider struct {
-	Token string `json:"api_token,omitempty"`
+	APIToken string `json:"api_token,omitempty"`
 
 	domains map[string]gandiDomain
 	mutex   sync.Mutex
@@ -61,7 +61,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 	}
 
 	for _, rec := range records {
-		err := p.setRecord(ctx, domain, rec)
+		err := p.setRecord(ctx, zone, rec, domain)
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +78,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 	}
 
 	for _, rec := range records {
-		err := p.deleteRecord(ctx, domain, rec)
+		err := p.deleteRecord(ctx, zone, rec, domain)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +96,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 	}
 
 	for _, rec := range records {
-		err := p.setRecord(ctx, domain, rec)
+		err := p.setRecord(ctx, zone, rec, domain)
 		if err != nil {
 			return nil, err
 		}

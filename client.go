@@ -6,15 +6,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/libdns/libdns"
 )
 
-func (p *Provider) setRecord(ctx context.Context, domain gandiDomain, record libdns.Record) error {
+func (p *Provider) setRecord(ctx context.Context, zone string, record libdns.Record, domain gandiDomain) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, record.Name, record.Type), nil)
+	// there is some strange regexp in the api that prevents us from searching names ending with a dot
+	// so we must ensure the names of the record is relative and does not end with a dot
+	recRelativeName := strings.TrimRight(strings.TrimSuffix(record.Name, zone), ".")
+
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, recRelativeName, record.Type), nil)
 	if err != nil {
 		return err
 	}
@@ -36,17 +41,17 @@ func (p *Provider) setRecord(ctx context.Context, domain gandiDomain, record lib
 		}
 	}
 
-	values := oldGandiRecord.RRSetValues
+	recValues := oldGandiRecord.RRSetValues
 	if !exists {
-		values = append(values, record.Value)
+		recValues = append(recValues, record.Value)
 	}
 
 	// we just create a new record, if an existing record was found, we just append the new value to the existing ones
 	newGandiRecord := gandiRecord{
-		RRSetType:   record.Type,
-		RRSetName:   record.Name,
 		RRSetTTL:    int(record.TTL.Seconds()),
-		RRSetValues: values,
+		RRSetType:   record.Type,
+		RRSetName:   recRelativeName,
+		RRSetValues: recValues,
 	}
 
 	raw, err := json.Marshal(newGandiRecord)
@@ -55,7 +60,7 @@ func (p *Provider) setRecord(ctx context.Context, domain gandiDomain, record lib
 	}
 
 	// we update existing record or create a new record if it does not exist yet
-	req, err = http.NewRequestWithContext(ctx, "PUT", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, record.Name, record.Type), bytes.NewReader(raw))
+	req, err = http.NewRequestWithContext(ctx, "PUT", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, recRelativeName, record.Type), bytes.NewReader(raw))
 	if err != nil {
 		return err
 	}
@@ -63,14 +68,19 @@ func (p *Provider) setRecord(ctx context.Context, domain gandiDomain, record lib
 	req.Header.Set("Content-Type", "application/json")
 
 	_, err = p.doRequest(req, nil)
+
 	return err
 }
 
-func (p *Provider) deleteRecord(ctx context.Context, domain gandiDomain, record libdns.Record) error {
+func (p *Provider) deleteRecord(ctx context.Context, zone string, record libdns.Record, domain gandiDomain) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, record.Name, record.Type), nil)
+	// there is some strange regexp in the api that prevents us from searching names ending with a dot
+	// so we must ensure the names of the record is relative and does not end with a dot
+	recRelativeName := strings.TrimRight(strings.TrimSuffix(record.Name, zone), ".")
+
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, recRelativeName, record.Type), nil)
 	if err != nil {
 		return err
 	}
@@ -96,15 +106,15 @@ func (p *Provider) deleteRecord(ctx context.Context, domain gandiDomain, record 
 			return err
 		}
 
-		req, err = http.NewRequestWithContext(ctx, "PUT", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, record.Name, record.Type), bytes.NewReader(raw))
+		req, err = http.NewRequestWithContext(ctx, "PUT", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, recRelativeName, record.Type), bytes.NewReader(raw))
 	} else {
 		// if there is only one entry, we make sure that the value to delete is matching the one we found
 		// otherwise we may delete the wrong record
-		if rec.RRSetValues[0] != record.Value {
+		if strings.Trim(rec.RRSetValues[0], "\"") != record.Value {
 			return fmt.Errorf("LiveDNS returned a %v (%v)", http.StatusNotFound, "Can't find such a DNS value")
 		}
 
-		req, err = http.NewRequestWithContext(ctx, "DELETE", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, record.Name, record.Type), nil)
+		req, err = http.NewRequestWithContext(ctx, "DELETE", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, recRelativeName, record.Type), nil)
 	}
 
 	// we check if NewRequestWithContext threw an error
@@ -118,9 +128,13 @@ func (p *Provider) deleteRecord(ctx context.Context, domain gandiDomain, record 
 	return err
 }
 
-func (p *Provider) getDomain(ctx context.Context, fqdn string) (gandiDomain, error) {
+func (p *Provider) getDomain(ctx context.Context, zone string) (gandiDomain, error) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+
+	// we trim the dot at the end of the zone name to get the fqdn
+	// and then use it to fetch domain information through the api
+	fqdn := strings.TrimRight(zone, ".")
 
 	if p.domains == nil {
 		p.domains = make(map[string]gandiDomain)
@@ -143,7 +157,7 @@ func (p *Provider) getDomain(ctx context.Context, fqdn string) (gandiDomain, err
 }
 
 func (p *Provider) doRequest(req *http.Request, result interface{}) (gandiStatus, error) {
-	req.Header.Set("X-Api-Key", p.Token)
+	req.Header.Set("X-Api-Key", p.APIToken)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
