@@ -154,8 +154,6 @@ func (p *Provider) doRequest(req *http.Request, result interface{}) (gandiStatus
 
 	defer resp.Body.Close()
 
-	fmt.Println(resp.StatusCode)
-
 	if resp.StatusCode >= 400 {
 		var response gandiStatus
 		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
