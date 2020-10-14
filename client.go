@@ -17,7 +17,7 @@ func (p *Provider) setRecord(ctx context.Context, zone string, record libdns.Rec
 
 	// there is some strange regexp in the api that prevents us from searching names ending with a dot
 	// so we must ensure the names of the record is relative and does not end with a dot
-	recRelativeName := strings.TrimRight(strings.TrimSuffix(record.Name, zone), ".")
+	recRelativeName := strings.TrimRight(strings.TrimSuffix(record.Name, domain.Fqdn), ".")
 
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, recRelativeName, record.Type), nil)
 	if err != nil {
@@ -78,7 +78,7 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, record libdns.
 
 	// there is some strange regexp in the api that prevents us from searching names ending with a dot
 	// so we must ensure the names of the record is relative and does not end with a dot
-	recRelativeName := strings.TrimRight(strings.TrimSuffix(record.Name, zone), ".")
+	recRelativeName := strings.TrimRight(strings.TrimSuffix(record.Name, domain.Fqdn), ".")
 
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, recRelativeName, record.Type), nil)
 	if err != nil {
