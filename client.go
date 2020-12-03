@@ -143,7 +143,7 @@ func (p *Provider) getDomain(ctx context.Context, zone string) (gandiDomain, err
 		return domain, nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://dns.api.gandi.net/api/v5/domains/%s", fqdn), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.gandi.net/v5/livedns/domains/%s", fqdn), nil)
 
 	var domain gandiDomain
 
