@@ -24,7 +24,7 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", domain.ZoneRecordsHref, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", domain.DomainRecordsHref, nil)
 	if err != nil {
 		return nil, err
 	}
