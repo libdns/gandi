@@ -31,19 +31,17 @@ type gandiZone struct {
 }
 
 type gandiDomain struct {
-	ZoneUUID           string `json:"zone_uuid"`
-	DomainKeysHref     string `json:"domain_keys_href"`
 	Fqdn               string `json:"fqdn"`
-	ZoneHref           string `json:"zone_href"`
 	AutomaticSnapshots bool   `json:"automatic_snapshots"`
-	ZoneRecordsHref    string `json:"zone_records_href"`
-	DomainRecordsHref  string `json:"domain_records_href"`
 	DomainHref         string `json:"domain_href"`
+	DomainKeysHref     string `json:"domain_keys_href"`
+	DomainRecordsHref  string `json:"domain_records_href"`
 }
 
 type gandiRecord struct {
-	RRSetType   string   `json:"rrset_type,omitempty"`
-	RRSetTTL    int      `json:"rrset_ttl,omitempty"`
+	RRSetHref   string   `json:"rrset_href,omitempty"`
 	RRSetName   string   `json:"rrset_name,omitempty"`
+	RRSetType   string   `json:"rrset_type,omitempty"`
 	RRSetValues []string `json:"rrset_values,omitempty"`
+	RRSetTTL    int      `json:"rrset_ttl,omitempty"`
 }

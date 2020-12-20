@@ -15,11 +15,10 @@ func (p *Provider) setRecord(ctx context.Context, zone string, record libdns.Rec
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	// there is some strange regexp in the api that prevents us from searching names ending with a dot
-	// so we must ensure the names of the record is relative and does not end with a dot
-	recRelativeName := strings.TrimRight(strings.TrimSuffix(record.Name, domain.Fqdn), ".")
+	// Append a dot to get the absolute record name.
+	recAbsoluteName := record.Name + "."
 
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, recRelativeName, record.Type), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, recAbsoluteName, record.Type), nil)
 	if err != nil {
 		return err
 	}
@@ -50,7 +49,7 @@ func (p *Provider) setRecord(ctx context.Context, zone string, record libdns.Rec
 	newGandiRecord := gandiRecord{
 		RRSetTTL:    int(record.TTL.Seconds()),
 		RRSetType:   record.Type,
-		RRSetName:   recRelativeName,
+		RRSetName:   recAbsoluteName,
 		RRSetValues: recValues,
 	}
 
@@ -60,7 +59,7 @@ func (p *Provider) setRecord(ctx context.Context, zone string, record libdns.Rec
 	}
 
 	// we update existing record or create a new record if it does not exist yet
-	req, err = http.NewRequestWithContext(ctx, "PUT", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, recRelativeName, record.Type), bytes.NewReader(raw))
+	req, err = http.NewRequestWithContext(ctx, "PUT", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, recAbsoluteName, record.Type), bytes.NewReader(raw))
 	if err != nil {
 		return err
 	}
@@ -76,11 +75,10 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, record libdns.
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	// there is some strange regexp in the api that prevents us from searching names ending with a dot
-	// so we must ensure the names of the record is relative and does not end with a dot
-	recRelativeName := strings.TrimRight(strings.TrimSuffix(record.Name, domain.Fqdn), ".")
+	// Append a dot to get the absolute record name.
+	recAbsoluteName := record.Name + "."
 
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, recRelativeName, record.Type), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, recAbsoluteName, record.Type), nil)
 	if err != nil {
 		return err
 	}
@@ -106,7 +104,7 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, record libdns.
 			return err
 		}
 
-		req, err = http.NewRequestWithContext(ctx, "PUT", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, recRelativeName, record.Type), bytes.NewReader(raw))
+		req, err = http.NewRequestWithContext(ctx, "PUT", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, recAbsoluteName, record.Type), bytes.NewReader(raw))
 	} else {
 		// if there is only one entry, we make sure that the value to delete is matching the one we found
 		// otherwise we may delete the wrong record
@@ -114,7 +112,7 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, record libdns.
 			return fmt.Errorf("LiveDNS returned a %v (%v)", http.StatusNotFound, "Can't find such a DNS value")
 		}
 
-		req, err = http.NewRequestWithContext(ctx, "DELETE", fmt.Sprintf("%s/%s/%s", domain.ZoneRecordsHref, recRelativeName, record.Type), nil)
+		req, err = http.NewRequestWithContext(ctx, "DELETE", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, recAbsoluteName, record.Type), nil)
 	}
 
 	// we check if NewRequestWithContext threw an error
