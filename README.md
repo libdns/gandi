@@ -7,20 +7,20 @@ This package implements the [libdns interfaces](https://github.com/libdns/libdns
 
 ## Authenticating
 
-This package supports **API Key authentication** but does not yet support **Sharing ID authentication**. Refer to the [LiveDNS documentation](https://doc.livedns.gandi.net/) for more information.
+This package only supports **API Key authentication**. Refer to the [Gandi's Public API documentation](https://api.gandi.net/docs/reference/#Authentication) for more information.
 
 Start by [retrieving your API key](https://account.gandi.net/) from the _Security_ section in Gandi account admin panel to be able to make authenticated requests to the API.
 
 ## Technical limitations
 
-The [LiveDNS documentation](https://doc.livedns.gandi.net/) states that records with the same name and type are merged so that their `rrset_values` are grouped together.
+The [LiveDNS documentation](https://api.gandi.net/docs/livedns/) states that records with the same name and type are merged so that their `rrset_values` are grouped together.
 
 ```
 {
   "rrset_type": "MX",
   "rrset_ttl": 1800,
   "rrset_name": "@",
-  "rrset_href": "https://dns.api.gandi.net/api/v5/domains/gconfs.fr/records/@/MX",
+  "rrset_href": "https://api.gandi.net/v5/livedns/domains/gconfs.fr/records/@/MX",
   "rrset_values": [
     "1 aspmx.l.google.com.",
     "5 alt1.aspmx.l.google.com.",
