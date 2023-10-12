@@ -17,6 +17,9 @@ func (p *Provider) setRecord(ctx context.Context, zone string, record libdns.Rec
 
 	// Append a dot to get the absolute record name.
 	recAbsoluteName := record.Name + "."
+	if !strings.HasSuffix(recAbsoluteName, zone) {
+		recAbsoluteName = recAbsoluteName + zone
+	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, recAbsoluteName, record.Type), nil)
 	if err != nil {
@@ -77,6 +80,9 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, record libdns.
 
 	// Append a dot to get the absolute record name.
 	recAbsoluteName := record.Name + "."
+	if !strings.HasSuffix(recAbsoluteName, zone) {
+		recAbsoluteName = recAbsoluteName + zone
+	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, recAbsoluteName, record.Type), nil)
 	if err != nil {
@@ -105,6 +111,9 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, record libdns.
 		}
 
 		req, err = http.NewRequestWithContext(ctx, "PUT", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, recAbsoluteName, record.Type), bytes.NewReader(raw))
+		if err != nil {
+			return err
+		}
 	} else {
 		// if there is only one entry, we make sure that the value to delete is matching the one we found
 		// otherwise we may delete the wrong record
@@ -142,6 +151,9 @@ func (p *Provider) getDomain(ctx context.Context, zone string) (gandiDomain, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.gandi.net/v5/livedns/domains/%s", fqdn), nil)
+	if err != nil {
+		return gandiDomain{}, err
+	}
 
 	var domain gandiDomain
 
@@ -155,7 +167,12 @@ func (p *Provider) getDomain(ctx context.Context, zone string) (gandiDomain, err
 }
 
 func (p *Provider) doRequest(req *http.Request, result interface{}) (gandiStatus, error) {
-	req.Header.Set("Authorization", fmt.Sprintf("Apikey %s", p.APIToken))
+	auth, err := p.getAuthHeader()
+	if err != nil {
+		return gandiStatus{}, err
+	}
+
+	req.Header.Set("Authorization", auth)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
@@ -186,4 +203,17 @@ func (p *Provider) doRequest(req *http.Request, result interface{}) (gandiStatus
 	}
 
 	return gandiStatus{}, nil
+}
+
+func (p *Provider) getAuthHeader() (string, error) {
+	switch {
+	case p.APIToken != "":
+		return fmt.Sprintf("Apikey %s", p.APIToken), nil
+
+	case p.BearerToken != "":
+		return fmt.Sprintf("Bearer %s", p.BearerToken), nil
+
+	default:
+		return "", fmt.Errorf("no auth token configured")
+	}
 }

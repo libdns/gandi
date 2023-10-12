@@ -14,22 +14,6 @@ type gandiStatus struct {
 	Errors  []gandiErrors `json:"errors"`
 }
 
-type gandiZone struct {
-	Retry           int    `json:"retry"`
-	UUID            string `json:"uuid"`
-	ZoneHref        string `json:"zone_href"`
-	Minimum         int    `json:"minimum"`
-	DomainsHref     string `json:"domains_href"`
-	Refresh         int    `json:"refresh"`
-	ZoneRecordsHref string `json:"zone_records_href"`
-	Expire          int    `json:"expire"`
-	SharingID       string `json:"sharing_id"`
-	Serial          int    `json:"serial"`
-	Email           string `json:"email"`
-	PrimaryNS       string `json:"primary_ns"`
-	Name            string `json:"name"`
-}
-
 type gandiDomain struct {
 	Fqdn               string `json:"fqdn"`
 	AutomaticSnapshots bool   `json:"automatic_snapshots"`
