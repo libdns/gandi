@@ -84,6 +84,9 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, record libdns.
 		return err
 	}
 
+	// might contain request crafting error
+	var requestErr error
+
 	if len(rec.RRSetValues) > 1 {
 		// if it contains multiple values, the best is to update the record instead of deleting all the values
 		newRRSetValues := []string{}
@@ -99,7 +102,7 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, record libdns.
 			return err
 		}
 
-		req, err = http.NewRequestWithContext(ctx, "PUT", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, record.Name, record.Type), bytes.NewReader(raw))
+		req, requestErr = http.NewRequestWithContext(ctx, "PUT", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, record.Name, record.Type), bytes.NewReader(raw))
 	} else {
 		// if there is only one entry, we make sure that the value to delete is matching the one we found
 		// otherwise we may delete the wrong record
@@ -107,18 +110,18 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, record libdns.
 			return fmt.Errorf("LiveDNS returned a %v (%v)", http.StatusNotFound, "Can't find such a DNS value")
 		}
 
-		req, err = http.NewRequestWithContext(ctx, "DELETE", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, record.Name, record.Type), nil)
+		req, requestErr = http.NewRequestWithContext(ctx, "DELETE", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, record.Name, record.Type), nil)
 	}
 
 	// we check if NewRequestWithContext threw an error
-	if err != nil {
-		return err
+	if requestErr != nil {
+		return requestErr
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
-	_, err = p.doRequest(req, nil)
-	return err
+	_, requestErr = p.doRequest(req, nil)
+	return requestErr
 }
 
 func (p *Provider) getDomain(ctx context.Context, zone string) (gandiDomain, error) {
@@ -136,12 +139,18 @@ func (p *Provider) getDomain(ctx context.Context, zone string) (gandiDomain, err
 		return domain, nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.gandi.net/v5/livedns/domains/%s", fqdn), nil)
+	// might contain request crafting error
+	var requestErr error
+
+	req, requestErr := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.gandi.net/v5/livedns/domains/%s", fqdn), nil)
+	if requestErr != nil {
+		return gandiDomain{}, requestErr
+	}
 
 	var domain gandiDomain
 
-	if _, err = p.doRequest(req, &domain); err != nil {
-		return gandiDomain{}, err
+	if _, requestErr = p.doRequest(req, &domain); requestErr != nil {
+		return gandiDomain{}, requestErr
 	}
 
 	p.domains[fqdn] = domain
@@ -150,7 +159,7 @@ func (p *Provider) getDomain(ctx context.Context, zone string) (gandiDomain, err
 }
 
 func (p *Provider) doRequest(req *http.Request, result interface{}) (gandiStatus, error) {
-	req.Header.Set("Authorization", fmt.Sprintf("Apikey %s", p.APIToken))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.BearerToken))
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
