@@ -86,12 +86,13 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, record libdns.
 
 	if len(rec.RRSetValues) > 1 {
 		// if it contains multiple values, the best is to update the record instead of deleting all the values
-		for i, val := range rec.RRSetValues {
-			if val == record.Value {
-				rec.RRSetValues[len(rec.RRSetValues)-1], rec.RRSetValues[i] = rec.RRSetValues[i], rec.RRSetValues[len(rec.RRSetValues)-1]
-				rec.RRSetValues = rec.RRSetValues[:len(rec.RRSetValues)-1]
+		newRRSetValues := []string{}
+		for _, val := range rec.RRSetValues {
+			if val != record.Value {
+				newRRSetValues = append(newRRSetValues, val)
 			}
 		}
+		rec.RRSetValues = newRRSetValues
 
 		raw, err := json.Marshal(rec)
 		if err != nil {
