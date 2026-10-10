@@ -38,14 +38,17 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 	var libRecords []libdns.Record
 	for _, rec := range gandiRecords {
 		for _, val := range rec.RRSetValues {
-			rec := libdns.RR{
+			rr := libdns.RR{
 				Type: rec.RRSetType,
 				Name: rec.RRSetName,
 				TTL:  time.Duration(rec.RRSetTTL) * time.Second,
 				Data: val,
 			}
-
-			libRecords = append(libRecords, rec)
+			parsed, err := rr.Parse()
+			if err != nil {
+				return nil, err
+			}
+			libRecords = append(libRecords, parsed)
 		}
 	}
 
