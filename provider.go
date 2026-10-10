@@ -64,7 +64,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 	}
 
 	for _, rec := range records {
-		err := p.setRecord(ctx, zone, rec.RR(), domain)
+		err := p.appendRecord(ctx, zone, rec.RR(), domain)
 		if err != nil {
 			return nil, err
 		}

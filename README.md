@@ -32,4 +32,4 @@ The [LiveDNS documentation](https://api.gandi.net/docs/livedns/) states that rec
 
 On the above example, such a design forces us to perform a `PUT` to add a new `@ 1800 IN MX 10 alt4.aspmx.l.google.com.` record instead of a simple `POST`. Thus, we can not use `POST` to add new records if there is already existing records with the same name and type.
 
-That's why `AppendRecord` has the same behaviour than `SetRecord`. Due to these technical limitations, updating or appending records may affect the TTL of similar records which have the same name and type.
+`AppendRecords` appends values to an existing rrset of the same name and type, while `SetRecords` replaces the rrset with the value(s) provided (upsert semantics). Due to these technical limitations, updating or appending records may affect the TTL of similar records which have the same name and type.
