@@ -12,6 +12,7 @@ import (
 // Provider implements the libdns interfaces for Gandi.
 type Provider struct {
 	BearerToken string `json:"bearer_token,omitempty"`
+	SharingId   string `json:"sharing_id,omitempty"`
 
 	domains map[string]gandiDomain
 	mutex   sync.Mutex

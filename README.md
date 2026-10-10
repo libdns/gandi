@@ -11,6 +11,12 @@ This package only supports **API Key authentication**. Refer to the [Gandi's Pub
 
 Start by [retrieving your API key](https://account.gandi.net/) from the _Security_ section in Gandi account admin panel to be able to make authenticated requests to the API.
 
+### Cross-organization access
+
+If the PAT user's default organization is not the one that owns the domain you want to manage, list endpoints (`/v5/domain/domains`, `/v5/livedns/domains`) will still find the domain because Gandi filters by all visible orgs, but per-record-set endpoints will return `404`. Setting `Provider.SharingId` to the UUID of the org that owns the domain causes the provider to send `X-Gandi-Sharing-Id: <uuid>` on every request, and the per-record-set endpoints then succeed.
+
+Note: the documented form of this hint is the [`sharing_id` query string parameter](https://api.gandi.net/docs/reference/#Sharing-ID), but in practice that form doesn't reach per-record-set endpoints. The `X-Gandi-Sharing-Id` header is empirically required there but isn't currently part of the public reference.
+
 ## Technical limitations
 
 The [LiveDNS documentation](https://api.gandi.net/docs/livedns/) states that records with the same name and type are merged so that their `rrset_values` are grouped together.

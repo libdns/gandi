@@ -178,6 +178,9 @@ func (p *Provider) getDomain(ctx context.Context, zone string) (gandiDomain, err
 func (p *Provider) doRequest(req *http.Request, result interface{}) (gandiStatus, error) {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.BearerToken))
 	req.Header.Set("Accept", "application/json")
+	if p.SharingId != "" {
+		req.Header.Set("X-Gandi-Sharing-Id", p.SharingId)
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 
