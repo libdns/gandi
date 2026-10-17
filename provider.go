@@ -43,7 +43,7 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 				Type: rec.RRSetType,
 				Name: rec.RRSetName,
 				TTL:  time.Duration(rec.RRSetTTL) * time.Second,
-				Data: val,
+				Data: fromGandiValue(zone, rec.RRSetName, rec.RRSetType, val),
 			}
 			parsed, err := rr.Parse()
 			if err != nil {
