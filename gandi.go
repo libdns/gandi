@@ -1,7 +1,7 @@
 package gandi
 
 type gandiErrors struct {
-	Location    string `json:"body"`
+	Location    string `json:"location"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
