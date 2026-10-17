@@ -192,11 +192,30 @@ func (p *Provider) doRequest(req *http.Request, result interface{}) (gandiStatus
 
 	if resp.StatusCode >= 400 {
 		var response gandiStatus
-		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-			return gandiStatus{}, err
+		// a body that is not JSON (from a gateway, for instance) still carries
+		// a meaningful HTTP status: report that rather than the decoding error
+		_ = json.NewDecoder(resp.Body).Decode(&response)
+
+		// validation errors come without code nor message, only a list of
+		// errors: fall back on the HTTP status and spell out each error
+		if response.Code == 0 {
+			response.Code = resp.StatusCode
+		}
+		message := response.Message
+		if message == "" {
+			message = http.StatusText(resp.StatusCode)
 		}
 
-		return response, fmt.Errorf("LiveDNS returned a %v (%v)", response.Code, response.Message)
+		err := fmt.Errorf("LiveDNS returned a %v (%v)", response.Code, message)
+		if len(response.Errors) > 0 {
+			details := make([]string, 0, len(response.Errors))
+			for _, e := range response.Errors {
+				details = append(details, strings.TrimSpace(fmt.Sprintf("%s %s: %s", e.Location, e.Name, e.Description)))
+			}
+			err = fmt.Errorf("%w: %s", err, strings.Join(details, "; "))
+		}
+
+		return response, err
 	}
 
 	// the api does not return the json object on 201 or 204, so we just stop here
