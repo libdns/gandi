@@ -11,9 +11,56 @@ import (
 	"github.com/libdns/libdns"
 )
 
+// isServiceBinding tells whether the record type follows RFC 9460, whose
+// target field is the second one of the value.
+func isServiceBinding(recType string) bool {
+	return recType == "HTTPS" || recType == "SVCB"
+}
+
+// toGandiValue spells out the "." target of a ServiceMode HTTPS/SVCB value.
+// RFC 9460 defines "." as the owner name, but LiveDNS rejects it with "String
+// does not match expected pattern" and accepts the same name written in full.
+// AliasMode (priority 0) is left alone: there, "." means no service at all.
+func toGandiValue(zone, name, recType, value string) string {
+	if !isServiceBinding(recType) {
+		return value
+	}
+
+	fields := strings.SplitN(value, " ", 3)
+	if len(fields) < 2 || fields[0] == "0" || fields[1] != "." {
+		return value
+	}
+
+	fields[1] = ownerFQDN(zone, name)
+	return strings.Join(fields, " ")
+}
+
+// fromGandiValue reverses toGandiValue, so that callers read back the "."
+// target they wrote and recognise their own record.
+func fromGandiValue(zone, name, recType, value string) string {
+	if !isServiceBinding(recType) {
+		return value
+	}
+
+	fields := strings.SplitN(value, " ", 3)
+	if len(fields) < 2 || fields[0] == "0" || !strings.EqualFold(fields[1], ownerFQDN(zone, name)) {
+		return value
+	}
+
+	fields[1] = "."
+	return strings.Join(fields, " ")
+}
+
+// ownerFQDN returns the fully qualified owner name, with its trailing dot.
+func ownerFQDN(zone, name string) string {
+	return strings.TrimSuffix(libdns.AbsoluteName(name, zone), ".") + "."
+}
+
 func (p *Provider) appendRecord(ctx context.Context, zone string, rr libdns.RR, domain gandiDomain) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+
+	data := toGandiValue(zone, rr.Name, rr.Type, rr.Data)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, rr.Name, rr.Type), nil)
 	if err != nil {
@@ -31,7 +78,7 @@ func (p *Provider) appendRecord(ctx context.Context, zone string, rr libdns.RR, 
 	// we check if the new value does not already exists and append it if not
 	var exists bool
 	for _, val := range oldGandiRecord.RRSetValues {
-		if val == rr.Data {
+		if val == data {
 			exists = true
 			break
 		}
@@ -39,7 +86,7 @@ func (p *Provider) appendRecord(ctx context.Context, zone string, rr libdns.RR, 
 
 	recValues := oldGandiRecord.RRSetValues
 	if !exists {
-		recValues = append(recValues, rr.Data)
+		recValues = append(recValues, data)
 	}
 
 	// we just create a new record, if an existing record was found, we just append the new value to the existing ones
@@ -62,7 +109,7 @@ func (p *Provider) setRecord(ctx context.Context, zone string, rr libdns.RR, dom
 		RRSetTTL:    int(rr.TTL.Seconds()),
 		RRSetType:   rr.Type,
 		RRSetName:   rr.Name,
-		RRSetValues: []string{rr.Data},
+		RRSetValues: []string{toGandiValue(zone, rr.Name, rr.Type, rr.Data)},
 	}
 
 	return p.putRecord(ctx, domain, rr.Name, rr.Type, newGandiRecord)
@@ -89,6 +136,8 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, rr libdns.RR, 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
+	data := toGandiValue(zone, rr.Name, rr.Type, rr.Data)
+
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/%s/%s", domain.DomainRecordsHref, rr.Name, rr.Type), nil)
 	if err != nil {
 		return err
@@ -108,7 +157,7 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, rr libdns.RR, 
 		// if it contains multiple values, the best is to update the record instead of deleting all the values
 		newRRSetValues := []string{}
 		for _, val := range rec.RRSetValues {
-			if val != rr.Data {
+			if val != data {
 				newRRSetValues = append(newRRSetValues, val)
 			}
 		}
@@ -123,7 +172,7 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, rr libdns.RR, 
 	} else {
 		// if there is only one entry, we make sure that the value to delete is matching the one we found
 		// otherwise we may delete the wrong record
-		if strings.Trim(rec.RRSetValues[0], "\"") != rr.Data {
+		if strings.Trim(rec.RRSetValues[0], "\"") != data {
 			return fmt.Errorf("LiveDNS returned a %v (%v)", http.StatusNotFound, "Can't find such a DNS value")
 		}
 
